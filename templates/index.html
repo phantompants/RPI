@@ -1,0 +1,795 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#171410">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Portable Media Backup &amp; Cloud Sync</title>
+<style>
+  :root {
+    color-scheme: dark;
+    /* Jurassic Park jeep livery: Sand Beige body (PPG LJ1), red + warm
+       gray diagonal stripes, yellow hood numbers, black roll bar. */
+    --bg: #171410;
+    --panel: #201b14;
+    --panel-border: #403627;
+    --text: #ece1c8;
+    --muted: #a3947a;
+    --accent: #d2b48c;   /* Sand Beige */
+    --green: #4e8c55;    /* park-gate green */
+    --red: #c8102e;      /* stripe red */
+    --yellow: #f2a900;   /* hood-number yellow */
+    --stripe-gray: #75787b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    padding: 1.5rem;
+  }
+  h1 { font-size: 1.35rem; margin: 0 0 1rem; display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+  #jp226-logo { height: 2.2rem; width: auto; flex-shrink: 0; }
+  h2 { font-size: 0.95rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; margin: 0 0 0.75rem; }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+  }
+  .gauge-row { margin-bottom: 0.9rem; }
+  .gauge-label { display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--muted); margin-bottom: 0.3rem; }
+  .bar { height: 10px; border-radius: 6px; background: #2b241a; overflow: hidden; }
+  .bar-fill { height: 100%; background: var(--accent); transition: width 0.4s ease; }
+  .bar-fill.warn { background: var(--yellow); }
+  .bar-fill.crit { background: var(--red); }
+  .job { border: 1px solid var(--panel-border); border-radius: 8px; padding: 0.6rem 0.8rem; margin-bottom: 0.6rem; }
+  .job-head { display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 0.4rem; }
+  .job-head .status { text-transform: uppercase; font-size: 0.7rem; padding: 0.1rem 0.5rem; border-radius: 999px; }
+  .status.running { background: #5a4a2f; color: #f3e5c3; }
+  .status.success { background: #2c4a30; color: #cfe8d1; }
+  .status.error { background: #5d0f1c; color: #f4c2ca; }
+  .muted { color: var(--muted); font-size: 0.8rem; }
+  .btn-row { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+  button {
+    background: var(--red);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 0.55rem 1rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  button:hover { filter: brightness(1.1); }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .toggle-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem; font-size: 0.9rem; }
+  input[type="checkbox"] { width: 1.1rem; height: 1.1rem; }
+  input[type="number"], input[type="text"] { background: #2b241a; border: 1px solid var(--panel-border); color: var(--text); border-radius: 6px; padding: 0.25rem 0.5rem; }
+  input[type="number"] { width: 5rem; }
+  #conn-dot { display: inline-block; width: 0.55rem; height: 0.55rem; border-radius: 50%; background: var(--muted); margin-right: 0.4rem; }
+  #conn-dot.live { background: var(--green); }
+  .health-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; font-size: 0.85rem; }
+  .health-grid .value { font-size: 1.3rem; font-weight: 600; }
+
+  .tabs { display: flex; gap: 0.4rem; margin-bottom: 1.25rem; border-bottom: 1px solid var(--panel-border); }
+  .tab-btn {
+    background: transparent;
+    color: var(--muted);
+    border: none;
+    border-radius: 8px 8px 0 0;
+    padding: 0.5rem 1rem;
+    font-size: 0.85rem;
+  }
+  .tab-btn.active { color: var(--text); background: var(--panel); border: 1px solid var(--panel-border); border-bottom: none; border-top: 3px solid var(--red); }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  .list-row { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid var(--panel-border); font-size: 0.85rem; }
+  .list-row:last-child { border-bottom: none; }
+  .list-row .name { display: flex; align-items: center; gap: 0.5rem; }
+  .signal-bars { color: var(--muted); font-size: 0.75rem; }
+  select { background: #2b241a; border: 1px solid var(--panel-border); color: var(--text); border-radius: 6px; padding: 0.35rem 0.5rem; font-size: 0.85rem; }
+  .breadcrumbs { font-size: 0.8rem; color: var(--muted); margin-bottom: 0.6rem; }
+  .breadcrumbs a { color: var(--accent); cursor: pointer; text-decoration: none; }
+  .file-row { cursor: pointer; }
+  .file-row:hover { color: var(--accent); }
+  .btn-sm { padding: 0.3rem 0.7rem; font-size: 0.75rem; }
+  .btn-danger { background: transparent; border: 1px solid var(--red); color: #e8697d; }
+  .badge { font-size: 0.7rem; padding: 0.1rem 0.4rem; border-radius: 4px; background: #2b241a; color: var(--muted); }
+  .badge.in-use { background: #2c4a30; color: #cfe8d1; }
+
+  /* Large screens (iPad Pro landscape, desktop): cap width and center */
+  @media (min-width: 1100px) {
+    body { max-width: 1280px; margin: 0 auto; }
+  }
+
+  /* Phones (iPhone Pro Max is 430px wide) and small tablets */
+  @media (max-width: 700px) {
+    body { padding: 0.75rem; padding-bottom: max(0.75rem, env(safe-area-inset-bottom)); }
+    h1 { font-size: 1.1rem; }
+    .grid { grid-template-columns: 1fr; }
+    .tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .tab-btn { padding: 0.7rem 0.9rem; white-space: nowrap; font-size: 0.9rem; }
+    button { padding: 0.7rem 1.1rem; min-height: 44px; font-size: 0.9rem; }
+    .btn-sm { min-height: 38px; padding: 0.4rem 0.8rem; }
+    .btn-row button { flex: 1 1 45%; }
+    /* Text/number inputs stack under their label at full width; checkbox
+       rows stay side-by-side since a lone checkbox stacks awkwardly. */
+    .toggle-row { flex-direction: column; align-items: stretch; gap: 0.35rem; }
+    .toggle-row:has(input[type="checkbox"]) { flex-direction: row; align-items: center; justify-content: space-between; }
+    .toggle-row input[type="text"], .toggle-row input[type="number"] { width: 100% !important; box-sizing: border-box; padding: 0.6rem; font-size: 1rem; }
+    input[type="checkbox"] { width: 1.4rem; height: 1.4rem; }
+    .list-row { flex-wrap: wrap; gap: 0.4rem; }
+    .list-row .name { flex-wrap: wrap; }
+    .job-head { flex-wrap: wrap; gap: 0.3rem; }
+    .health-grid .value { font-size: 1.05rem; }
+    select { width: 100%; padding: 0.6rem; font-size: 1rem; }
+  }
+</style>
+</head>
+<body>
+  <h1>
+    <svg id="jp226-logo" viewBox="0 0 196 64" role="img" aria-label="JP226" xmlns="http://www.w3.org/2000/svg">
+      <text x="2" y="52" font-family="'Arial Black', 'Helvetica Neue', sans-serif" font-weight="900"
+            font-size="56" letter-spacing="-3" fill="var(--accent)">JP</text>
+      <rect x="76" y="2" width="118" height="60" fill="var(--red)"/>
+      <text x="135" y="52" font-family="'Arial Black', 'Helvetica Neue', sans-serif" font-weight="900"
+            font-size="56" letter-spacing="-3" fill="#ffffff" text-anchor="middle">226</text>
+    </svg>
+    <span id="conn-dot"></span>Portable Media Backup &amp; Cloud Sync
+  </h1>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
+    <button class="tab-btn" data-tab="jobs">Jobs</button>
+    <button class="tab-btn" data-tab="system">System</button>
+    <button class="tab-btn" data-tab="config">Config</button>
+    <button class="tab-btn" data-tab="cloud-sync">Cloud Sync</button>
+    <button class="tab-btn" data-tab="wifi">Wi-Fi</button>
+    <button class="tab-btn" data-tab="files">Files</button>
+    <button class="tab-btn" data-tab="logs">Logs</button>
+  </div>
+
+  <div class="tab-panel active" id="tab-dashboard">
+    <div class="grid">
+      <div class="panel">
+        <h2>Storage</h2>
+        <div id="storage-gauges"></div>
+        <p class="muted" id="storage-msg"></p>
+      </div>
+
+      <div class="panel">
+        <h2>Manual Triggers</h2>
+        <div class="btn-row">
+          <button data-trigger="ingest">Ingest SD Now</button>
+          <button data-trigger="export">Export to SSD Now</button>
+          <button data-trigger="mirror">Mirror SSD Now</button>
+          <button data-trigger="sync">Cloud Sync Now</button>
+        </div>
+        <p class="muted" id="trigger-msg"></p>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Active Jobs</h2>
+      <div id="jobs-active"><p class="muted">No active jobs.</p></div>
+    </div>
+  </div>
+
+  <div class="tab-panel" id="tab-jobs">
+    <div class="panel">
+      <h2>Recent Jobs</h2>
+      <div id="jobs-recent"><p class="muted">No completed jobs yet.</p></div>
+    </div>
+  </div>
+
+  <div class="tab-panel" id="tab-system">
+    <div class="panel">
+      <h2>System Health</h2>
+      <div class="health-grid" id="health-grid"></div>
+    </div>
+  </div>
+
+  <div class="tab-panel" id="tab-config">
+    <div class="panel">
+      <h2>Configuration</h2>
+      <div class="toggle-row">
+        <span>Cloud sync enabled</span>
+        <input type="checkbox" id="cfg-cloud-sync">
+      </div>
+      <div class="toggle-row">
+        <span>Filter SSD export by age (31 days)</span>
+        <input type="checkbox" id="cfg-filter-age">
+      </div>
+      <div class="toggle-row">
+        <span>GPX match tolerance (seconds)</span>
+        <input type="number" id="cfg-gpx-tolerance" min="0" step="10">
+      </div>
+      <div class="btn-row">
+        <button id="save-config">Save Settings</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-panel" id="tab-cloud-sync">
+    <div class="panel">
+      <h2>Sync Schedule</h2>
+      <div class="toggle-row">
+        <span>Cloud sync enabled</span>
+        <input type="checkbox" id="cs-enabled">
+      </div>
+      <div class="toggle-row">
+        <span>Run once daily at (HH:MM, blank = use interval instead)</span>
+        <input type="text" id="cs-daily-time" placeholder="22:00" style="width:6rem;">
+      </div>
+      <div class="toggle-row">
+        <span>Interval in minutes (only used if daily time is blank)</span>
+        <input type="number" id="cs-schedule-minutes" min="1">
+      </div>
+      <div class="toggle-row">
+        <span>Bandwidth limit (e.g. 10M, blank = unlimited)</span>
+        <input type="text" id="cs-bandwidth" placeholder="10M" style="width:6rem;">
+      </div>
+      <div class="btn-row">
+        <button id="cs-save-settings">Save Schedule</button>
+      </div>
+      <p class="muted" id="cs-settings-msg"></p>
+    </div>
+
+    <div class="panel">
+      <h2>Remotes</h2>
+      <p class="muted">Each remote needs a matching entry already set up in <code>config/rclone.conf</code> (run <code>rclone config</code> to create one) - this page only manages which local folder syncs to which destination, and whether it's active.</p>
+      <div id="cs-remotes-list"><p class="muted">Loading…</p></div>
+    </div>
+
+    <div class="panel">
+      <h2>Add / Edit a Remote</h2>
+      <div class="toggle-row">
+        <span>Remote name (must match a [name] block in rclone.conf)</span>
+        <input type="text" id="cs-remote-name" placeholder="gdrive" style="width:10rem;">
+      </div>
+      <div class="toggle-row">
+        <span>Source folder on this Pi</span>
+        <input type="text" id="cs-remote-source" placeholder="/mnt/port_primary_ssd/Processed_Media" style="width:22rem;">
+      </div>
+      <div class="toggle-row">
+        <span>Destination path on the remote</span>
+        <input type="text" id="cs-remote-path" placeholder="gdrive:PhotoBackup" style="width:14rem;">
+      </div>
+      <div class="toggle-row">
+        <span>Enabled</span>
+        <input type="checkbox" id="cs-remote-enabled" checked>
+      </div>
+      <div class="btn-row">
+        <button id="cs-save-remote">Save Remote</button>
+      </div>
+      <p class="muted" id="cs-remote-msg"></p>
+    </div>
+  </div>
+
+  <div class="tab-panel" id="tab-wifi">
+    <div class="grid">
+      <div class="panel">
+        <h2>Current Connection</h2>
+        <div id="wifi-status"><p class="muted">Loading…</p></div>
+      </div>
+
+      <div class="panel">
+        <h2>Saved Networks</h2>
+        <div id="wifi-saved"><p class="muted">Loading…</p></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Available Networks</h2>
+      <div class="btn-row" style="margin-bottom: 0.75rem;">
+        <button id="wifi-scan-btn">Scan for Networks</button>
+      </div>
+      <div id="wifi-networks"><p class="muted">Click "Scan for Networks" to see what's nearby.</p></div>
+      <p class="muted" id="wifi-msg"></p>
+    </div>
+  </div>
+
+  <div class="tab-panel" id="tab-files">
+    <div class="panel">
+      <div class="btn-row" style="margin-bottom: 0.75rem;">
+        <select id="files-root"></select>
+      </div>
+      <div class="breadcrumbs" id="files-breadcrumbs"></div>
+      <div id="files-list"><p class="muted">Loading…</p></div>
+    </div>
+  </div>
+
+  <div class="tab-panel" id="tab-logs">
+    <div class="panel">
+      <h2>Daemon Log</h2>
+      <div class="btn-row" style="margin-bottom: 0.75rem;">
+        <button id="logs-refresh">Refresh</button>
+        <button id="logs-copy">Copy to Clipboard</button>
+      </div>
+      <pre id="logs-content" style="max-height: 60vh; overflow: auto; background: #120f0a; border: 1px solid var(--panel-border); border-radius: 8px; padding: 0.75rem; font-size: 0.72rem; line-height: 1.35; white-space: pre-wrap; word-break: break-word;">Loading…</pre>
+      <p class="muted" id="logs-msg"></p>
+    </div>
+
+    <div class="panel">
+      <h2>USB Diagnostics</h2>
+      <p class="muted">Run this with a drive plugged in to see whether the Pi detects it at all — handy when a bay stays "not connected". Copy the output to share.</p>
+      <div class="btn-row" style="margin-bottom: 0.75rem;">
+        <button id="usb-refresh">Run USB Diagnostics</button>
+        <button id="usb-copy">Copy to Clipboard</button>
+      </div>
+      <pre id="usb-content" style="max-height: 60vh; overflow: auto; background: #120f0a; border: 1px solid var(--panel-border); border-radius: 8px; padding: 0.75rem; font-size: 0.72rem; line-height: 1.35; white-space: pre-wrap; word-break: break-word;">Click "Run USB Diagnostics".</pre>
+      <p class="muted" id="usb-msg"></p>
+    </div>
+  </div>
+
+<script>
+const fmtBytes = (n) => {
+  if (n === undefined || n === null) return "-";
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let i = 0;
+  while (n >= 1024 && i < units.length - 1) { n /= 1024; i++; }
+  return `${n.toFixed(1)} ${units[i]}`;
+};
+
+const barClass = (pct) => pct >= 90 ? "crit" : pct >= 75 ? "warn" : "";
+
+function renderStorage(storage) {
+  const el = document.getElementById("storage-gauges");
+  const bays = storage?.bays || [];
+  if (!bays.length) {
+    el.innerHTML = `<p class="muted">No storage bays configured.</p>`;
+    return;
+  }
+  el.innerHTML = bays.map((bay) => {
+    if (!bay.connected) {
+      return `
+        <div class="gauge-row">
+          <div class="gauge-label"><span>${bay.name}</span><span class="muted">not connected</span></div>
+          <div class="bar"></div>
+        </div>`;
+    }
+    const eject = bay.devnode
+      ? `<button class="btn-sm" data-eject="${bay.devnode}">Eject</button>`
+      : "";
+    return `
+      <div class="gauge-row">
+        <div class="gauge-label">
+          <span><strong>${bay.name}</strong></span>
+          <span>${bay.percent_used}% used &middot; ${fmtBytes(bay.total_bytes)} total ${eject}</span>
+        </div>
+        <div class="bar"><div class="bar-fill ${barClass(bay.percent_used)}" style="width:${bay.percent_used}%"></div></div>
+        <div class="muted" style="margin-top:0.2rem;">${fmtBytes(bay.used_bytes)} used &middot; ${fmtBytes(bay.free_bytes)} free</div>
+      </div>`;
+  }).join("");
+  el.querySelectorAll("[data-eject]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      btn.disabled = true;
+      const msg = document.getElementById("storage-msg");
+      try {
+        const res = await fetch("/api/eject", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ devnode: btn.getAttribute("data-eject") }) });
+        const data = await res.json();
+        if (msg) msg.textContent = data.ok ? "Ejected — safe to unplug." : `Eject failed: ${data.error}`;
+      } catch (e) {
+        if (msg) msg.textContent = `Eject failed: ${e}`;
+      }
+    });
+  });
+}
+
+function renderHealth(health) {
+  const el = document.getElementById("health-grid");
+  if (!health) return;
+  el.innerHTML = `
+    <div><div class="muted">CPU</div><div class="value">${health.cpu_percent?.toFixed(0) ?? "-"}%</div></div>
+    <div><div class="muted">CPU Temp</div><div class="value">${health.cpu_temp_celsius ? health.cpu_temp_celsius.toFixed(1) + "°C" : "n/a"}</div></div>
+    <div><div class="muted">RAM</div><div class="value">${health.ram_percent?.toFixed(0) ?? "-"}%</div></div>
+    <div><div class="muted">RAM Used / Total</div><div class="value">${fmtBytes(health.ram_used_bytes)} / ${fmtBytes(health.ram_total_bytes)}</div></div>
+    <div><div class="muted">OS SD Card Used / Total</div><div class="value">${fmtBytes(health.sd_card_used_bytes)} / ${fmtBytes(health.sd_card_total_bytes)}</div></div>
+  `;
+}
+
+const JOB_TYPE_LABELS = {
+  sd_mirror: "Raw mirror copy",
+  sd_process: "Metadata processing",
+  ssd_export_standard: "Structured export",
+  ssd_export_camera: "Camera-layout export",
+  cloud_sync: "Cloud sync",
+  nas_sync: "NAS sync",
+};
+
+function jobCard(id, job) {
+  const pct = job.bytes_total ? Math.min(100, (job.bytes_done / job.bytes_total) * 100).toFixed(1) : 0;
+  const speed = job.speed_bps ? fmtBytes(job.speed_bps) + "/s" : (job.speed_text || "-");
+  const eta = job.eta_seconds ? `${Math.round(job.eta_seconds)}s` : (job.eta_text || "-");
+  const typeLabel = JOB_TYPE_LABELS[job.type] || job.type;
+  const title = (job.source_label && job.dest_label)
+    ? `[${job.source_label}] &rarr; [${job.dest_label}]`
+    : typeLabel;
+  return `
+    <div class="job">
+      <div class="job-head">
+        <span><strong>${title}</strong> <span class="muted">${typeLabel}</span></span>
+        <span class="status ${job.status}">${job.status}</span>
+      </div>
+      <div class="bar"><div class="bar-fill ${barClass(pct)}" style="width:${pct}%"></div></div>
+      <p class="muted">${job.files_done ?? 0}/${job.files_total ?? "?"} files &middot; ${fmtBytes(job.bytes_done)} / ${fmtBytes(job.bytes_total)} &middot; ${speed} &middot; ETA ${eta}</p>
+    </div>`;
+}
+
+function renderJobs(jobsAndDevices) {
+  const jobs = jobsAndDevices?.jobs || {};
+  const entries = Object.entries(jobs).sort((a, b) => (b[1].updated_at || 0) - (a[1].updated_at || 0));
+
+  const active = entries.filter(([_, job]) => job.status === "running");
+  const recent = entries.filter(([_, job]) => job.status !== "running");
+
+  const activeEl = document.getElementById("jobs-active");
+  activeEl.innerHTML = active.length
+    ? active.map(([id, job]) => jobCard(id, job)).join("")
+    : `<p class="muted">No active jobs.</p>`;
+
+  const recentEl = document.getElementById("jobs-recent");
+  recentEl.innerHTML = recent.length
+    ? recent.slice(0, 25).map(([id, job]) => jobCard(id, job)).join("")
+    : `<p class="muted">No completed jobs yet.</p>`;
+}
+
+function applySnapshot(data) {
+  if (data.storage) renderStorage(data.storage);
+  if (data.health) renderHealth(data.health);
+  if (data.jobs_and_devices) renderJobs(data.jobs_and_devices);
+}
+
+async function loadConfig() {
+  const res = await fetch("/api/config");
+  const cfg = await res.json();
+  document.getElementById("cfg-cloud-sync").checked = !!cfg.cloud_sync?.enabled;
+  document.getElementById("cfg-filter-age").checked = !!cfg.export?.filter_by_age;
+  document.getElementById("cfg-gpx-tolerance").value = cfg.ingest?.gpx_match_tolerance_seconds ?? 120;
+}
+
+document.getElementById("save-config").addEventListener("click", async () => {
+  const body = {
+    cloud_sync_enabled: document.getElementById("cfg-cloud-sync").checked,
+    export_filter_by_age: document.getElementById("cfg-filter-age").checked,
+    gpx_match_tolerance_seconds: parseInt(document.getElementById("cfg-gpx-tolerance").value, 10),
+  };
+  await fetch("/api/config", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+});
+
+document.querySelectorAll("[data-trigger]").forEach((btn) => {
+  btn.addEventListener("click", async () => {
+    const kind = btn.getAttribute("data-trigger");
+    const msg = document.getElementById("trigger-msg");
+    btn.disabled = true;
+    try {
+      const res = await fetch(`/api/trigger/${kind}`, { method: "POST" });
+      const data = await res.json();
+      msg.textContent = data.ok ? `${kind} triggered.` : `Error: ${data.error}`;
+    } catch (e) {
+      msg.textContent = `Error: ${e}`;
+    } finally {
+      setTimeout(() => { btn.disabled = false; }, 1500);
+    }
+  });
+});
+
+function connectWebSocket() {
+  const proto = location.protocol === "https:" ? "wss:" : "ws:";
+  const ws = new WebSocket(`${proto}//${location.host}/ws`);
+  const dot = document.getElementById("conn-dot");
+  ws.onopen = () => dot.classList.add("live");
+  ws.onclose = () => { dot.classList.remove("live"); setTimeout(connectWebSocket, 2000); };
+  ws.onerror = () => ws.close();
+  ws.onmessage = (event) => applySnapshot(JSON.parse(event.data));
+}
+
+loadConfig();
+connectWebSocket();
+
+// Poll /api/status as a fallback in case the websocket is unavailable.
+setInterval(async () => {
+  try {
+    const res = await fetch("/api/status");
+    applySnapshot(await res.json());
+  } catch (e) { /* ignore, websocket likely handling updates */ }
+}, 5000);
+
+// ---------------------------------------------------------------------
+// Tabs
+// ---------------------------------------------------------------------
+document.querySelectorAll(".tab-btn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const tab = btn.getAttribute("data-tab");
+    document.querySelectorAll(".tab-btn").forEach((b) => b.classList.toggle("active", b === btn));
+    document.querySelectorAll(".tab-panel").forEach((p) => p.classList.toggle("active", p.id === `tab-${tab}`));
+    if (tab === "wifi") { loadWifiStatus(); loadWifiSaved(); }
+    if (tab === "files") { loadFileRoots(); }
+    if (tab === "cloud-sync") { loadCloudSync(); }
+    if (tab === "logs") { loadLogs(); }
+  });
+});
+
+// ---------------------------------------------------------------------
+// Logs & USB diagnostics
+// ---------------------------------------------------------------------
+async function loadLogs() {
+  const el = document.getElementById("logs-content");
+  try {
+    const res = await fetch("/api/logs?lines=400");
+    el.textContent = await res.text();
+    el.scrollTop = el.scrollHeight;
+  } catch (e) {
+    el.textContent = `Failed to load log: ${e}`;
+  }
+}
+
+async function copyPre(id, msgId) {
+  const text = document.getElementById(id).textContent;
+  const msg = document.getElementById(msgId);
+  try {
+    await navigator.clipboard.writeText(text);
+    msg.textContent = "Copied to clipboard.";
+  } catch (e) {
+    // Clipboard API needs HTTPS or localhost; fall back to selecting.
+    const range = document.createRange();
+    range.selectNodeContents(document.getElementById(id));
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    msg.textContent = "Select-all done — press Cmd/Ctrl+C to copy (clipboard API blocked on plain HTTP).";
+  }
+}
+
+document.getElementById("logs-refresh").addEventListener("click", loadLogs);
+document.getElementById("logs-copy").addEventListener("click", () => copyPre("logs-content", "logs-msg"));
+
+document.getElementById("usb-refresh").addEventListener("click", async () => {
+  const el = document.getElementById("usb-content");
+  el.textContent = "Running…";
+  try {
+    const res = await fetch("/api/usb/diagnostics");
+    const d = await res.json();
+    el.textContent =
+      "=== lsblk ===\n" + d.lsblk +
+      "\n\n=== /dev/disk/by-path ===\n" + d.by_path +
+      "\n\n=== lsusb ===\n" + d.lsusb +
+      "\n\n=== dmesg (last 25) ===\n" + (Array.isArray(d.dmesg_tail) ? d.dmesg_tail.join("\n") : d.dmesg_tail);
+  } catch (e) {
+    el.textContent = `Failed: ${e}`;
+  }
+});
+document.getElementById("usb-copy").addEventListener("click", () => copyPre("usb-content", "usb-msg"));
+
+// ---------------------------------------------------------------------
+// Cloud Sync
+// ---------------------------------------------------------------------
+async function loadCloudSync() {
+  const res = await fetch("/api/cloud_sync");
+  const cfg = await res.json();
+
+  document.getElementById("cs-enabled").checked = !!cfg.enabled;
+  document.getElementById("cs-daily-time").value = cfg.daily_start_time || "";
+  document.getElementById("cs-schedule-minutes").value = cfg.schedule_minutes ?? 60;
+  document.getElementById("cs-bandwidth").value = cfg.bandwidth_limit || "";
+
+  const el = document.getElementById("cs-remotes-list");
+  const remotes = cfg.remotes || [];
+  if (remotes.length === 0) {
+    el.innerHTML = `<p class="muted">No remotes configured yet.</p>`;
+    return;
+  }
+  el.innerHTML = remotes.map((r) => `
+    <div class="job">
+      <div class="job-head">
+        <span>${r.name} <span class="badge ${r.enabled ? "in-use" : ""}">${r.enabled ? "enabled" : "disabled"}</span></span>
+        <button class="btn-sm btn-danger" data-delete-remote="${r.name}">Delete</button>
+      </div>
+      <p class="muted">Source: <strong>${r.source}</strong></p>
+      <p class="muted">Destination: <strong>${r.remote_path}</strong></p>
+    </div>`).join("");
+  el.querySelectorAll("[data-delete-remote]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      btn.disabled = true;
+      await fetch(`/api/cloud_sync/remotes/${encodeURIComponent(btn.getAttribute("data-delete-remote"))}`, { method: "DELETE" });
+      loadCloudSync();
+    });
+  });
+}
+
+document.getElementById("cs-save-settings").addEventListener("click", async () => {
+  const msg = document.getElementById("cs-settings-msg");
+  const body = {
+    enabled: document.getElementById("cs-enabled").checked,
+    daily_start_time: document.getElementById("cs-daily-time").value.trim() || null,
+    schedule_minutes: parseInt(document.getElementById("cs-schedule-minutes").value, 10) || null,
+    bandwidth_limit: document.getElementById("cs-bandwidth").value.trim(),
+  };
+  const res = await fetch("/api/cloud_sync/settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const data = await res.json();
+  msg.textContent = data.ok ? "Schedule saved." : `Error: ${data.error}`;
+});
+
+document.getElementById("cs-save-remote").addEventListener("click", async () => {
+  const msg = document.getElementById("cs-remote-msg");
+  const name = document.getElementById("cs-remote-name").value.trim();
+  const source = document.getElementById("cs-remote-source").value.trim();
+  const remote_path = document.getElementById("cs-remote-path").value.trim();
+  const enabled = document.getElementById("cs-remote-enabled").checked;
+  if (!name || !source || !remote_path) {
+    msg.textContent = "Name, source, and destination are all required.";
+    return;
+  }
+  const res = await fetch("/api/cloud_sync/remotes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, source, remote_path, enabled }) });
+  const data = await res.json();
+  msg.textContent = data.ok ? `Saved remote "${name}".` : `Error: ${data.error}`;
+  if (data.ok) loadCloudSync();
+});
+
+// ---------------------------------------------------------------------
+// Wi-Fi
+// ---------------------------------------------------------------------
+async function loadWifiStatus() {
+  const el = document.getElementById("wifi-status");
+  try {
+    const res = await fetch("/api/wifi/status");
+    const s = await res.json();
+    el.innerHTML = s.connected
+      ? `<p>Connected to <strong>${s.ssid}</strong></p><p class="muted">${s.device} &middot; ${s.ip_address || "no IP"}</p>`
+      : `<p class="muted">Not connected to any Wi-Fi network.</p>`;
+  } catch (e) {
+    el.innerHTML = `<p class="muted">Unable to read Wi-Fi status.</p>`;
+  }
+}
+
+async function loadWifiSaved() {
+  const el = document.getElementById("wifi-saved");
+  try {
+    const res = await fetch("/api/wifi/saved");
+    const data = await res.json();
+    if (!data.ok) { el.innerHTML = `<p class="muted">Error: ${data.error}</p>`; return; }
+    if (data.saved.length === 0) { el.innerHTML = `<p class="muted">No saved networks.</p>`; return; }
+    el.innerHTML = data.saved.map((n) => `
+      <div class="list-row">
+        <span class="name">${n.name}</span>
+        <button class="btn-sm btn-danger" data-forget="${n.name}">Forget</button>
+      </div>`).join("");
+    el.querySelectorAll("[data-forget]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        btn.disabled = true;
+        await fetch("/api/wifi/forget", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: btn.getAttribute("data-forget") }) });
+        loadWifiSaved();
+      });
+    });
+  } catch (e) {
+    el.innerHTML = `<p class="muted">Unable to load saved networks.</p>`;
+  }
+}
+
+document.getElementById("wifi-scan-btn").addEventListener("click", async () => {
+  const el = document.getElementById("wifi-networks");
+  const msg = document.getElementById("wifi-msg");
+  el.innerHTML = `<p class="muted">Scanning…</p>`;
+  try {
+    const res = await fetch("/api/wifi/scan");
+    const data = await res.json();
+    if (!data.ok) { el.innerHTML = `<p class="muted">Error: ${data.error}</p>`; return; }
+    el.innerHTML = data.networks.map((n) => `
+      <div class="list-row">
+        <span class="name">${n.ssid} <span class="signal-bars">${n.signal ?? "?"}%</span> ${n.in_use ? '<span class="badge in-use">connected</span>' : ""}</span>
+        <button class="btn-sm" data-connect="${n.ssid}" data-security="${n.security}">Connect</button>
+      </div>`).join("");
+    el.querySelectorAll("[data-connect]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const ssid = btn.getAttribute("data-connect");
+        const security = btn.getAttribute("data-security");
+        let password = null;
+        if (security && security !== "Open" && security !== "--") {
+          password = prompt(`Password for "${ssid}":`);
+          if (password === null) return;
+        }
+        btn.disabled = true;
+        msg.textContent = `Connecting to ${ssid}…`;
+        const res = await fetch("/api/wifi/connect", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ssid, password }) });
+        const result = await res.json();
+        msg.textContent = result.ok ? `Connected to ${ssid}.` : `Failed to connect: ${result.error}`;
+        btn.disabled = false;
+        loadWifiStatus();
+        loadWifiSaved();
+      });
+    });
+  } catch (e) {
+    el.innerHTML = `<p class="muted">Scan failed.</p>`;
+  }
+});
+
+// ---------------------------------------------------------------------
+// Files
+// ---------------------------------------------------------------------
+let currentFilesRoot = null;
+let currentFilesPath = "";
+
+async function loadFileRoots() {
+  const select = document.getElementById("files-root");
+  const res = await fetch("/api/files/roots");
+  const data = await res.json();
+  select.innerHTML = data.roots.map((r) => `<option value="${r.name}" ${!r.available ? "disabled" : ""}>${r.name}${r.available ? "" : " (not mounted)"}</option>`).join("");
+  if (data.roots.length > 0) {
+    currentFilesRoot = data.roots.find((r) => r.available)?.name || data.roots[0].name;
+    select.value = currentFilesRoot;
+    currentFilesPath = "";
+    loadFileList();
+  }
+}
+
+document.getElementById("files-root").addEventListener("change", (e) => {
+  currentFilesRoot = e.target.value;
+  currentFilesPath = "";
+  loadFileList();
+});
+
+function fmtDate(epochSeconds) {
+  if (!epochSeconds) return "-";
+  return new Date(epochSeconds * 1000).toLocaleString();
+}
+
+function renderBreadcrumbs() {
+  const el = document.getElementById("files-breadcrumbs");
+  const parts = currentFilesPath.split("/").filter(Boolean);
+  let html = `<a data-path="">${currentFilesRoot}</a>`;
+  let accum = "";
+  for (const part of parts) {
+    accum += (accum ? "/" : "") + part;
+    html += ` / <a data-path="${accum}">${part}</a>`;
+  }
+  el.innerHTML = html;
+  el.querySelectorAll("a").forEach((a) => {
+    a.addEventListener("click", () => {
+      currentFilesPath = a.getAttribute("data-path");
+      loadFileList();
+    });
+  });
+}
+
+async function loadFileList() {
+  const el = document.getElementById("files-list");
+  if (!currentFilesRoot) { el.innerHTML = `<p class="muted">No browsable roots configured.</p>`; return; }
+  renderBreadcrumbs();
+  el.innerHTML = `<p class="muted">Loading…</p>`;
+  try {
+    const res = await fetch(`/api/files/list?root=${encodeURIComponent(currentFilesRoot)}&path=${encodeURIComponent(currentFilesPath)}`);
+    const data = await res.json();
+    if (data.error) { el.innerHTML = `<p class="muted">Error: ${data.error}</p>`; return; }
+    if (data.entries.length === 0) { el.innerHTML = `<p class="muted">Empty folder.</p>`; return; }
+    el.innerHTML = data.entries.map((entry) => {
+      const childPath = currentFilesPath ? `${currentFilesPath}/${entry.name}` : entry.name;
+      if (entry.is_dir) {
+        return `<div class="list-row file-row" data-dir="${childPath}"><span class="name">📁 ${entry.name}</span><span class="muted">${fmtDate(entry.modified)}</span></div>`;
+      }
+      const url = `/api/files/download?root=${encodeURIComponent(currentFilesRoot)}&path=${encodeURIComponent(childPath)}`;
+      return `<a class="list-row file-row" href="${url}" style="color:inherit;text-decoration:none;"><span class="name">📄 ${entry.name}</span><span class="muted">${fmtBytes(entry.size)} &middot; ${fmtDate(entry.modified)}</span></a>`;
+    }).join("");
+    el.querySelectorAll("[data-dir]").forEach((row) => {
+      row.addEventListener("click", () => {
+        currentFilesPath = row.getAttribute("data-dir");
+        loadFileList();
+      });
+    });
+  } catch (e) {
+    el.innerHTML = `<p class="muted">Unable to list files.</p>`;
+  }
+}
+</script>
+</body>
+</html>

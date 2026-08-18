@@ -1,0 +1,157 @@
+# Portable Media Backup & Cloud Sync System - main configuration
+# Paths, ingestion/export behaviour, alerts, and cloud sync options.
+
+paths:
+  # The primary SSD does double duty: it's both the "internal" working
+  # storage (SD_Mirror_* raw copies + Processed_Media catalog) and an
+  # export destination in its own right (see usb_ports.primary_ssd below).
+  # Must NOT be the boot microSD card - that's only ~30GB and will fill up.
+  internal_ssd: /mnt/port_primary_ssd
+  sd_mirror_root: /mnt/port_primary_ssd  # SD_Mirror_[CARD_ID] folders are created here
+  processed_media: /mnt/port_primary_ssd/Processed_Media
+  source_sd_mount: /mnt/source_sd
+  external_ssd_mount: /mnt/external_ssd  # unused fallback while usb_ports.enabled is true
+  state_dir: /opt/mediabackup/state
+  log_dir: /opt/mediabackup/logs
+
+ingest:
+  # File extensions considered "media" and eligible for the processed pass.
+  media_extensions:
+    - .jpg
+    - .jpeg
+    - .png
+    - .raw
+    - .cr2
+    - .cr3
+    - .nef
+    - .arw
+    - .dng
+    - .mp4
+    - .mov
+    - .avi
+    - ".360"  # must be quoted: unquoted YAML parses .360 as the number 0.36
+    - .gpr
+    - .gpx  # GPS track logs travel with the media into Processed_Media/exports
+  # Rename pattern applied to files copied into Processed_Media.
+  # Available tokens: {date} {time} {original_name}
+  rename_pattern: "{date}-{time}-{original_name}"
+  gpx_match_tolerance_seconds: 120
+  hash_algorithm: sha1
+  read_only_mount: true
+
+export:
+  # If true, only files modified within `max_age_days` are exported to the
+  # external SSD. Set to false to export the full Processed_Media catalog.
+  filter_by_age: false
+  max_age_days: 31
+  camera_emulation_marker: .camera_emulation.yaml
+  standard_structure: "{year}/{year}-{month}/{year}-{month}-{day}/{camera}/{filetype}/{resolution}"
+
+# Pin specific physical USB ports to fixed roles, so behaviour is determined
+# by which port a device is plugged into rather than guessed from capacity.
+# Each port_path must be the udev physical-path identifier for that port,
+# which stays stable across reboots/reinsertions (unlike /dev/sdX letters).
+#
+# To find it: plug one drive in at a time and run `ls -la /dev/disk/by-path/`
+# - note which by-path entry appears/disappears for each physical port, and
+# paste the part before "-partN" into that port's port_path below. Leave
+# `enabled: false` until all four port_path values are filled in.
+usb_ports:
+  enabled: true
+  ports:
+    - role: sd_source
+      label: "Main SD/MicroSD reader (powered hub, downstream port 3)"
+      port_path: "0:1.1.3:1.0"
+      mount_point: /mnt/port_sd_source
+    - role: primary_ssd
+      label: "Main SSD backup (USB3, direct)"
+      port_path: "0:1.2:1.0"
+      mount_point: /mnt/port_primary_ssd
+    - role: secondary_ssd_mirror
+      label: "Overnight SSD mirror (powered hub, downstream port 1)"
+      port_path: "0:1.1.1:1.0"
+      mount_point: /mnt/port_secondary_ssd
+      earliest_run_time: "20:00"  # HH:MM local time; mirror only runs at/after this time each day
+    - role: thumb_drive
+      label: "Thumb drive, last 3 days only (USB2, direct)"
+      port_path: "0:1.3:1.0"
+      mount_point: /mnt/port_thumb_drive
+      max_age_days: 3
+
+cloud_sync:
+  enabled: false
+  rclone_config_path: /opt/mediabackup/config/rclone.conf
+  remotes:
+    - name: gdrive
+      remote_path: gdrive:PhotoBackup
+      source: /mnt/port_primary_ssd/Processed_Media
+      enabled: false
+  schedule_minutes: 60  # only used when daily_start_time is blank
+  daily_start_time: "23:00"  # HH:MM local time; runs once/day instead of every schedule_minutes
+  sync_only_on_change: true  # only run the daily sync on days new media was ingested
+  bandwidth_limit: ""  # e.g. "10M", empty = unlimited
+
+nas_sync:
+  enabled: false
+  host: ""
+  user: ""
+  remote_path: ""
+  source: /mnt/port_primary_ssd/Processed_Media
+
+alerts:
+  gpio:
+    enabled: false
+    driver: gpiozero  # gpiozero | blinkt
+    pins:
+      red: 17
+      green: 27
+      blue: 22
+      yellow: 23
+  m5stack:
+    enabled: false
+    transport: serial  # serial | websocket
+    serial_port: /dev/ttyUSB0
+    serial_baud: 115200
+    websocket_url: ws://m5stack.local:81
+  sound:
+    enabled: false
+    command: "aplay /opt/mediabackup/assets/alert.wav"
+
+web:
+  host: 0.0.0.0
+  port: 8080
+  # Physical bays shown in the dashboard's Storage panel, in display order.
+  # `match` is a udev ID_PATH fragment; a mounted device whose ID_PATH
+  # contains it fills that bay's gauge. Bays marked GUESS haven't had their
+  # path captured with real hardware yet (plug a device into just that bay
+  # and check `ls /dev/disk/by-path/` to confirm/correct).
+  storage_bays:
+    - name: "USB3 Lower - Main SSD"
+      match: "0:1.2:1.0"
+    - name: "USB3 Upper - USB-C Hub - Micro SD"
+      match: "0:1.1.3:1.0-scsi-0:0:0:0"
+    - name: "USB3 Upper - USB-C Hub - SD"
+      match: "0:1.1.3:1.0-scsi-0:0:0:1"  # GUESS: LUN 1 of the hub's card reader
+    - name: "USB3 Upper - USB-C Hub - Mirror SSD"
+      match: "0:1.1.1:1.0"
+    - name: "USB3 Upper - USB-C Hub - USB3 - 2"
+      match: "0:1.1.2:1.0"  # GUESS: hub downstream port 2
+    - name: "USB3 Upper - USB-C Hub - USB3 - 3"
+      match: "0:1.1.4:1.0"  # GUESS: hub downstream port 4
+    - name: "USB2 Lower - Alternate MicroSD"
+      match: "0:1.4:1.0-scsi-0:0:0:0"  # GUESS: second USB2 socket, reader LUN 0
+    - name: "USB2 Lower - Alternate SD"
+      match: "0:1.4:1.0-scsi-0:0:0:1"  # GUESS: second USB2 socket, reader LUN 1
+    - name: "USB2 Upper - USB Thumb Drive"
+      match: "0:1.3:1.0"
+  # Root directories exposed by the dashboard's file browser (/api/files/*).
+  # Paths outside this list can never be listed or downloaded.
+  browsable_roots:
+    - name: Processed Media
+      path: /mnt/port_primary_ssd/Processed_Media
+    - name: Primary SSD
+      path: /mnt/port_primary_ssd
+    - name: Secondary SSD Mirror
+      path: /mnt/port_secondary_ssd
+    - name: Thumb Drive
+      path: /mnt/port_thumb_drive

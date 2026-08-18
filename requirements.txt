@@ -1,0 +1,11 @@
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+pyudev==0.24.3
+exifread==3.0.0
+gpxpy==1.6.2
+gpiozero==2.0.1
+pyserial==3.5
+pyyaml==6.0.2
+websockets==13.1
+psutil==6.0.0
+python-multipart==0.0.9
