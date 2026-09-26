@@ -40,12 +40,13 @@ class LGFX : public lgfx::LGFX_Device {
   lgfx::Light_PWM _light;
   lgfx::Touch_XPT2046 _touch;
 public:
-  void setup(bool st7789, bool invert) {
+  // nativeLandscape: panel controller scans 320x240 (some USB-C CYDs), so no row/column swap is needed
+  void setup(bool st7789, bool invert, uint32_t freqWrite, bool nativeLandscape) {
     {
       auto cfg = _bus.config();
       cfg.spi_host = HSPI_HOST;
       cfg.spi_mode = 0;
-      cfg.freq_write = 40000000;
+      cfg.freq_write = freqWrite;
       cfg.freq_read = 16000000;
       cfg.spi_3wire = false;
       cfg.use_lock = true;
@@ -63,10 +64,10 @@ public:
       cfg.pin_cs = TFT_CS;
       cfg.pin_rst = -1;
       cfg.pin_busy = -1;
-      cfg.memory_width = 240;
-      cfg.memory_height = 320;
-      cfg.panel_width = 240;
-      cfg.panel_height = 320;
+      cfg.memory_width = nativeLandscape ? 320 : 240;
+      cfg.memory_height = nativeLandscape ? 240 : 320;
+      cfg.panel_width = nativeLandscape ? 320 : 240;
+      cfg.panel_height = nativeLandscape ? 240 : 320;
       cfg.offset_x = 0;
       cfg.offset_y = 0;
       cfg.offset_rotation = 0;
@@ -119,6 +120,8 @@ struct Settings {
   bool st7789 = false;
   bool invert = false;
   uint8_t rotation = 1;
+  uint8_t freqIndex = 0;   // index into SPI_FREQS
+  uint8_t madIndex = 2;    // index into MADCTL_OPTS; 2 = this USB-C CYD (landscape-native, un-mirrored)
   String piHost = "gps4.local";
 } settings;
 
@@ -139,6 +142,13 @@ IPAddress piIP;
 bool piResolved = false;
 uint32_t lastGoodMs = 0, lastGpsPoll = 0, lastSatsPoll = 0;
 int page = 0;
+bool testPattern = false;   // serial 't': freeze on a static pattern for display diagnosis
+const uint32_t SPI_FREQS[] = {40000000, 27000000, 20000000, 10000000};
+// Memory-access (MADCTL) values for panels that scan natively in landscape: no row/column exchange,
+// each mirror combination, BGR order (0x08). One is picked on the test pattern screen (tap to cycle)
+// and saved. Index 0 = standard portrait-native CYD using the library's rotation table.
+const uint8_t MADCTL_OPTS[] = {0, 0x08, 0x48, 0x88, 0xC8};
+constexpr int MADCTL_COUNT = 5;
 constexpr int PAGE_COUNT = 3;
 
 // ---------- Helpers ----------
@@ -153,6 +163,8 @@ void loadSettings() {
   settings.st7789 = prefs.getBool("st7789", settings.st7789);
   settings.invert = prefs.getBool("invert", settings.invert);
   settings.rotation = prefs.getUChar("rot", settings.rotation);
+  settings.freqIndex = prefs.getUChar("freq", settings.freqIndex) % 4;
+  settings.madIndex = prefs.getUChar("mad", settings.madIndex) % MADCTL_COUNT;
   settings.piHost = prefs.getString("pihost", settings.piHost);
   bool detected = prefs.isKey("st7789");
   prefs.end();
@@ -164,6 +176,8 @@ void saveSettings() {
   prefs.putBool("st7789", settings.st7789);
   prefs.putBool("invert", settings.invert);
   prefs.putUChar("rot", settings.rotation);
+  prefs.putUChar("freq", settings.freqIndex);
+  prefs.putUChar("mad", settings.madIndex);
   prefs.putString("pihost", settings.piHost);
   prefs.end();
 }
@@ -210,7 +224,13 @@ bool resolvePi() {
 }
 
 bool fetchJson(const char* path, JsonDocument& doc, uint16_t timeoutMs) {
-  if (!piResolved && !resolvePi()) return false;
+  // An mDNS lookup blocks for up to 2 s, so while the Pi can't be found only retry every 10 s.
+  static uint32_t lastResolveTry = 0;
+  if (!piResolved) {
+    if (lastResolveTry && millis() - lastResolveTry < 10000) return false;
+    lastResolveTry = millis();
+    if (!resolvePi()) return false;
+  }
   HTTPClient http;
   http.setConnectTimeout(timeoutMs);
   http.setTimeout(timeoutMs);
@@ -494,6 +514,36 @@ void render() {
   frame.pushSprite(0, 0);
 }
 
+// Apply the rotation, then the saved MADCTL override (which assumes the landscape rotation 1).
+void applyOrientation() {
+  lcd.setRotation(settings.madIndex ? 0 : settings.rotation);
+  if (settings.madIndex) {
+    lcd.startWrite();
+    lcd.writeCommand(0x36);
+    lcd.writeData(MADCTL_OPTS[settings.madIndex]);
+    lcd.endWrite();
+  }
+}
+
+// Static pattern drawn straight to the panel (no sprite): colour bars, a grid and text.
+void drawTestPattern() {
+  lcd.fillScreen(C_BG);
+  const uint32_t bars[] = {C_PURE_R, C_PURE_G, C_PURE_B, C_WHITE, C_GOLD, C_CYAN};
+  for (int i = 0; i < 6; i++) lcd.fillRect(i * lcd.width() / 6, 0, lcd.width() / 6, 60, bars[i]);
+  for (int x = 0; x < lcd.width(); x += 20) lcd.drawFastVLine(x, 70, 100, C_DIM);
+  for (int y = 70; y <= 170; y += 20) lcd.drawFastHLine(0, y, lcd.width(), C_DIM);
+  lcd.setFont(&fonts::FreeSansBold12pt7b);
+  lcd.setTextColor(C_WHITE);
+  lcd.setTextDatum(middle_center);
+  lcd.drawString("TEST PATTERN  ABC 123", lcd.width() / 2, 196);
+  char buf[40];
+  snprintf(buf, sizeof(buf), "Option %d of %d - tap for next", settings.madIndex, MADCTL_COUNT - 1);
+  lcd.setFont(&fonts::FreeSans9pt7b);
+  lcd.setTextColor(C_GOLD);
+  lcd.drawString(buf, lcd.width() / 2, 224);
+  lcd.drawRect(0, 0, lcd.width(), lcd.height(), C_RED);
+}
+
 void showMessage(const char* l1, const char* l2 = "", const char* l3 = "") {
   lcd.fillScreen(C_BG);
   lcd.setTextDatum(middle_center);
@@ -508,30 +558,61 @@ void showMessage(const char* l1, const char* l2 = "", const char* l3 = "") {
 }
 
 // ---------- Wi-Fi setup ----------
+// The portal runs non-blocking so the screen and serial commands keep working while it is up.
+WiFiManager wm;
+WiFiManagerParameter hostParam("pihost", "Pi hostname or IP", "gps4.local", 40);
+bool portalActive = false;
+
+void showPortalMessage() {
+  showMessage("Wi-Fi setup", "Join hotspot: GPS-Display-Setup", "then open 192.168.4.1 if no page appears");
+}
+
+void onWifiConnected() {
+  settings.piHost = hostParam.getValue();
+  saveSettings();
+  MDNS.begin("gps-display");
+  Serial.printf("[NET] Wi-Fi %s, IP %s\n", WiFi.SSID().c_str(), WiFi.localIP().toString().c_str());
+  resolvePi();
+}
+
 void startWifi(bool forcePortal) {
-  WiFiManager wm;
-  WiFiManagerParameter hostParam("pihost", "Pi hostname or IP", settings.piHost.c_str(), 40);
+  hostParam.setValue(settings.piHost.c_str(), 40);
   wm.addParameter(&hostParam);
   wm.setConnectTimeout(20);
   wm.setConfigPortalTimeout(300);
+  wm.setConfigPortalBlocking(false);
   wm.setAPCallback([](WiFiManager*) {
     setLed(false, false, true);
-    showMessage("Wi-Fi setup", "Join hotspot: GPS-Display-Setup", "then open 192.168.4.1 if no page appears");
+    showPortalMessage();
   });
-  wm.setSaveParamsCallback([&]() {
+  wm.setSaveParamsCallback([]() {
     settings.piHost = hostParam.getValue();
     saveSettings();
   });
   if (forcePortal) wm.resetSettings();
   showMessage("Connecting Wi-Fi...", WiFi.SSID().c_str(), "");
-  if (!wm.autoConnect("GPS-Display-Setup")) {
+  if (wm.autoConnect("GPS-Display-Setup")) {
+    onWifiConnected();
+  } else {
+    portalActive = true;
+  }
+}
+
+// Returns true while the setup portal is still running (loop skips the dashboard).
+bool servicePortal() {
+  if (!portalActive) return false;
+  wm.process();
+  if (WiFi.status() == WL_CONNECTED) {
+    portalActive = false;
+    onWifiConnected();
+    return false;
+  }
+  if (!wm.getConfigPortalActive()) {  // portal timed out without a network
     showMessage("No Wi-Fi", "Restarting...", "");
     delay(3000);
     ESP.restart();
   }
-  settings.piHost = hostParam.getValue();
-  saveSettings();
-  MDNS.begin("gps-display");
+  return true;
 }
 
 void handleSerial() {
@@ -541,16 +622,32 @@ void handleSerial() {
   if (c == 'i') { settings.invert = !settings.invert; reinit = true; }
   if (c == 'd') { settings.st7789 = !settings.st7789; saveSettings(); Serial.println("Driver changed, restarting"); delay(200); ESP.restart(); }
   if (c == 'r') { settings.rotation = (settings.rotation + 1) % 8; reinit = true; }
-  if (c == 'w') { WiFiManager wm; wm.resetSettings(); Serial.println("Wi-Fi forgotten, restarting"); delay(200); ESP.restart(); }
+  if (c >= '0' && c <= '7') { settings.rotation = c - '0'; settings.madIndex = 0; reinit = true; }
+  if (c == 'm') {
+    bool wasNative = settings.madIndex != 0;
+    settings.madIndex = settings.madIndex % (MADCTL_COUNT - 1) + 1;
+    saveSettings();
+    if (!wasNative) { Serial.println("Native-landscape panel mode, restarting"); delay(200); ESP.restart(); }
+    reinit = true;
+  }
+  if (c == 'f') { settings.freqIndex = (settings.freqIndex + 1) % 4; saveSettings(); Serial.printf("SPI %u Hz, restarting\n", SPI_FREQS[settings.freqIndex]); delay(200); ESP.restart(); }
+  if (c == 't') { testPattern = !testPattern; if (testPattern) drawTestPattern(); c = 's'; }
+  if (c == 'w') { wm.resetSettings(); Serial.println("Wi-Fi forgotten, restarting"); delay(200); ESP.restart(); }
   if (reinit) {
     saveSettings();
     lcd.invertDisplay(settings.invert);
-    lcd.setRotation(settings.rotation);
+    applyOrientation();
+    if (portalActive) showPortalMessage();
+    else if (testPattern) drawTestPattern();
+    else render();
+    c = 's';
   }
-  if (c == 'i' || c == 'r' || c == 's') {
-    Serial.printf("driver=%s invert=%d rotation=%d pihost=%s ip=%s wifi=%s rssi=%d link=%d heap=%u\n",
+  if (c == 's') {
+    Serial.printf("spi=%uHz test=%d mad=%d ", SPI_FREQS[settings.freqIndex], testPattern, settings.madIndex);
+    Serial.printf("driver=%s invert=%d rotation=%d pihost=%s pi_ip=%s wifi=%s my_ip=%s rssi=%d link=%d heap=%u\n",
                   settings.st7789 ? "ST7789" : "ILI9341", settings.invert, settings.rotation,
-                  settings.piHost.c_str(), piIP.toString().c_str(), WiFi.SSID().c_str(), WiFi.RSSI(),
+                  settings.piHost.c_str(), piIP.toString().c_str(), WiFi.SSID().c_str(),
+                  WiFi.localIP().toString().c_str(), WiFi.RSSI(),
                   linkOk(), ESP.getFreeHeap());
   }
 }
@@ -563,9 +660,9 @@ void setup() {
   setLed(false, false, false);
 
   loadSettings();
-  lcd.setup(settings.st7789, settings.invert);
+  lcd.setup(settings.st7789, settings.invert, SPI_FREQS[settings.freqIndex], settings.madIndex != 0);
   lcd.init();
-  lcd.setRotation(settings.rotation);
+  applyOrientation();
   lcd.setBrightness(255);
   Serial.printf("[LCD] driver=%s invert=%d rotation=%d\n", settings.st7789 ? "ST7789" : "ILI9341", settings.invert, settings.rotation);
 
@@ -590,17 +687,27 @@ void setup() {
     delay(100);
   }
   startWifi(held);
-  resolvePi();
 }
 
 void loop() {
   handleSerial();
+  if (servicePortal()) {
+    delay(10);
+    return;
+  }
   uint32_t now = millis();
 
   static bool wasTouched = false;
   int32_t tx, ty;
   bool touched = lcd.getTouch(&tx, &ty);
-  if (touched && !wasTouched) {
+  if (touched && !wasTouched && testPattern) {
+    // On the test pattern, each tap tries (and saves) the next landscape orientation
+    settings.madIndex = settings.madIndex % (MADCTL_COUNT - 1) + 1;
+    saveSettings();
+    applyOrientation();
+    drawTestPattern();
+    Serial.printf("[LCD] orientation option %d (MADCTL 0x%02X)\n", settings.madIndex, MADCTL_OPTS[settings.madIndex]);
+  } else if (touched && !wasTouched) {
     page = (page + 1) % PAGE_COUNT;
     lastSatsPoll = 0;
   }
@@ -624,7 +731,7 @@ void loop() {
   setLed(!ok, ok, false);
 
   static uint32_t lastDraw = 0;
-  if (now - lastDraw >= 100) {
+  if (!testPattern && now - lastDraw >= 100) {
     lastDraw = now;
     render();
   }

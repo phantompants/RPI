@@ -139,7 +139,7 @@ A dash-mounted screen that shows live data from the Pi over the vehicle Wi-Fi. T
    ```
 2. On first boot it creates the hotspot **GPS-Display-Setup**. Join it from your phone, choose the vehicle Wi-Fi (GL.iNet), enter its password and the Pi's name (`gps4.local`) or IP.
 3. LED: green = live data, red = no link to the Pi, blue = Wi-Fi setup. Hold the screen while powering on to redo Wi-Fi setup.
-4. Wrong colours/orientation? Over serial (115200) send `i` (invert colours), `r` (rotate) or `d` (switch ILI9341/ST7789 driver).
+4. Wrong orientation or mirrored? This USB-C CYD scans natively in landscape and uses orientation option 2 (the default). For another board, send `t` over serial (115200) to show a test pattern, then tap the screen to cycle orientation options 1–4 (saved on each tap) and send `t` again to return. Other serial commands: `i` invert colours, `f` lower SPI speed, `d` switch ILI9341/ST7789 driver, `s` status.
 
 ---
 
