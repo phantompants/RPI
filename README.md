@@ -129,6 +129,13 @@ On your current computer:
 
 ---
 
+## 🎯 M5Stick IMU Datum (zero level)
+Mount the M5StickC Plus2 at any angle. Park on level ground, then **hold the big front button (A) for 1 second** and keep still: that orientation becomes 0° pitch / 0° roll. The datum is stored on the stick and survives power cuts; the screen shows **DATUM** (or **RAW** if none). **Hold the side button (B) for 3 seconds** to clear it. The stick rotates all accelerometer and gyro readings into the datum frame before sending, so the Pi, logs and screens need no changes.
+
+The stick can be re-flashed through the Pi without unplugging it: copy the compiled `.bin` to the Pi, stop `rpi-gps-backend`, then run `venv/bin/esptool --chip esp32 --port <M5Stick port> write_flash 0x10000 m5stick_firmware.ino.bin`.
+
+---
+
 ## 📟 CYD Remote Screen (ESP32-2432S028 "Cheap Yellow Display")
 A dash-mounted screen that shows live data from the Pi over the vehicle Wi-Fi. Tap the screen to cycle **Dashboard → Inclinometer → Satellites**.
 
