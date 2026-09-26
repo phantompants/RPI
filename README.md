@@ -26,6 +26,7 @@ rpi-gps-tracker/
 ├── install.sh         # One-click Raspberry Pi setup & installation script
 ├── rpi_remote.py      # Run commands on the Pi over SSH from your PC
 ├── m5stick_firmware/  # Arduino sketch: M5StickC Plus2 IMU → USB serial JSON
+├── cyd_display/       # Arduino sketch: CYD (ESP32-2432S028) Wi-Fi remote screen
 ├── README.md          # Complete step-by-step beginner guide
 └── static/
     ├── index.html     # Touchscreen UI layout optimized for 3.5" display (320x480 / 480x320)
@@ -125,6 +126,20 @@ On your current computer:
    ```
 3. Open `http://localhost:8000` in your web browser.
 4. The app will detect no GPS mouse attached and instantly start **Simulation Mode**, simulating a moving vehicle!
+
+---
+
+## 📟 CYD Remote Screen (ESP32-2432S028 "Cheap Yellow Display")
+A dash-mounted screen that shows live data from the Pi over the vehicle Wi-Fi. Tap the screen to cycle **Dashboard → Inclinometer → Satellites**.
+
+1. Flash `cyd_display/` (board **ESP32 Dev Module**, partition **Huge APP**; libraries **LovyanGFX**, **WiFiManager**, **ArduinoJson**):
+   ```bash
+   arduino-cli compile --fqbn esp32:esp32:esp32:PartitionScheme=huge_app cyd_display
+   arduino-cli upload -p COM6 --fqbn esp32:esp32:esp32:PartitionScheme=huge_app cyd_display
+   ```
+2. On first boot it creates the hotspot **GPS-Display-Setup**. Join it from your phone, choose the vehicle Wi-Fi (GL.iNet), enter its password and the Pi's name (`gps4.local`) or IP.
+3. LED: green = live data, red = no link to the Pi, blue = Wi-Fi setup. Hold the screen while powering on to redo Wi-Fi setup.
+4. Wrong colours/orientation? Over serial (115200) send `i` (invert colours), `r` (rotate) or `d` (switch ILI9341/ST7789 driver).
 
 ---
 
