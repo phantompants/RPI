@@ -1,0 +1,557 @@
+:root {
+    --bg-main: #0a0e17;
+    --card-bg: rgba(20, 27, 45, 0.88);
+    --card-border: rgba(0, 240, 255, 0.15);
+    --text-bright: #ffffff;
+    --text-dim: #8a99ad;
+    --accent-cyan: #00f0ff;
+    --accent-green: #00ff88;
+    --accent-red: #ff3366;
+    --accent-gold: #ffaa00;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+body, html {
+    width: 100%;
+    height: 100%;
+    background-color: var(--bg-main);
+    color: var(--text-bright);
+    overflow: hidden;
+}
+
+.app-container {
+    display: flex;
+    flex-direction: column;
+    width: 100vw;
+    height: 100vh;
+}
+
+/* Header Telemetry Bar */
+.telemetry-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--card-bg);
+    border-bottom: 1px solid var(--card-border);
+    padding: 6px 12px;
+    height: 60px;
+    backdrop-filter: blur(10px);
+    z-index: 1000;
+}
+
+.speed-box {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    cursor: pointer;
+}
+
+.speed-value {
+    font-size: 2.2rem;
+    font-weight: 800;
+    color: var(--accent-cyan);
+    line-height: 1;
+    letter-spacing: -1px;
+}
+
+.speed-unit {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--accent-gold);
+    background: rgba(255, 170, 0, 0.15);
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid rgba(255, 170, 0, 0.3);
+}
+
+.stats-group {
+    display: flex;
+    gap: 8px;
+}
+
+.stat-pill {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 3px 8px;
+    border-radius: 6px;
+    min-width: 60px;
+}
+
+.stat-pill .label {
+    font-size: 0.55rem;
+    color: var(--text-dim);
+    font-weight: 700;
+}
+
+.stat-pill .value {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text-bright);
+}
+
+.status-badge {
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 4px 8px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-dim);
+}
+
+.status-badge.active {
+    background: rgba(0, 255, 136, 0.2);
+    color: var(--accent-green);
+    border: 1px solid rgba(0, 255, 136, 0.4);
+}
+
+.status-badge.sim {
+    background: rgba(0, 240, 255, 0.2);
+    color: var(--accent-cyan);
+    border: 1px solid rgba(0, 240, 255, 0.4);
+}
+
+/* Map Container */
+.map-container {
+    flex: 1;
+    position: relative;
+    width: 100%;
+}
+
+#map {
+    width: 100%;
+    height: 100%;
+    background: #111;
+}
+
+/* Coords Overlay */
+.coords-overlay {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    z-index: 999;
+    backdrop-filter: blur(5px);
+}
+
+/* Floating Controls */
+.map-controls {
+    position: absolute;
+    right: 12px;
+    bottom: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 999;
+}
+
+.btn-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    color: var(--text-bright);
+    font-size: 1.2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.btn-icon.active {
+    border-color: var(--accent-cyan);
+    box-shadow: 0 0 10px rgba(0, 240, 255, 0.5);
+}
+
+/* Action Bar */
+.action-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--card-bg);
+    border-top: 1px solid var(--card-border);
+    padding: 8px 12px;
+    height: 58px;
+    z-index: 1000;
+}
+
+.log-info {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.75rem;
+    color: var(--text-bright);
+}
+
+.points-tag {
+    font-size: 0.7rem;
+    color: var(--accent-green);
+    background: rgba(0, 255, 136, 0.15);
+    padding: 2px 6px;
+    border-radius: 6px;
+}
+
+.btn-action {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 0.8rem;
+    border: none;
+    cursor: pointer;
+}
+
+.btn-action.secondary {
+    background: rgba(0, 240, 255, 0.15);
+    color: var(--accent-cyan);
+    border: 1px solid rgba(0, 240, 255, 0.3);
+}
+
+.btn-action.primary {
+    background: var(--accent-cyan);
+    color: #000;
+    width: 100%;
+    justify-content: center;
+    margin-top: 10px;
+}
+
+.mode-tag {
+    font-size: 0.65rem;
+    color: var(--text-dim);
+}
+
+/* Modal Overlay */
+.modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    padding: 16px;
+}
+
+.modal-card {
+    background: #141b2d;
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 16px;
+    width: 100%;
+    max-width: 440px;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-card h3 {
+    font-size: 0.95rem;
+    color: var(--accent-cyan);
+    margin-bottom: 12px;
+}
+
+.logs-list {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 250px;
+}
+
+.log-date-group {
+    background: rgba(255, 255, 255, 0.04);
+    padding: 8px;
+    border-radius: 6px;
+}
+
+.log-date-header {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--accent-gold);
+    margin-bottom: 4px;
+}
+
+.log-file-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.75rem;
+    padding: 4px 0;
+    color: var(--text-dim);
+}
+
+.log-file-item a {
+    color: var(--accent-cyan);
+    text-decoration: none;
+    font-weight: 700;
+}
+
+.gps-pulse-marker {
+    width: 20px;
+    height: 20px;
+    background: var(--accent-cyan);
+    border: 3px solid #ffffff;
+    border-radius: 50%;
+    box-shadow: 0 0 12px var(--accent-cyan);
+}
+
+/* Clickable stat pill (opens Satellites page) */
+.stat-pill.clickable {
+    cursor: pointer;
+    border: 1px solid var(--card-border);
+}
+
+.action-buttons {
+    display: flex;
+    gap: 6px;
+}
+
+/* Track history range button (top-right of map) */
+.map-controls.top {
+    top: 8px;
+    bottom: auto;
+}
+
+.history-btn {
+    font-size: 0.72rem;
+    font-weight: 800;
+    color: var(--accent-cyan);
+}
+
+/* Stop markers (stays of 1 hour or more) */
+.stop-marker {
+    background: none;
+    border: none;
+}
+
+.stop-marker span {
+    display: inline-block;
+    transform: translate(-50%, -50%);
+    background: var(--accent-gold);
+    color: #000;
+    font-size: 0.7rem;
+    font-weight: 800;
+    padding: 2px 6px;
+    border-radius: 10px;
+    border: 2px solid #fff;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+    white-space: nowrap;
+}
+
+.leaflet-popup-content {
+    font-size: 0.8rem;
+    line-height: 1.4;
+}
+
+.popup-coords {
+    color: #666;
+    font-size: 0.7rem;
+}
+
+/* Satellite status page */
+.sat-card {
+    max-width: 760px;
+    max-height: 96vh;
+    padding: 10px 12px;
+    overflow-y: auto;
+}
+
+.sat-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 6px;
+}
+
+.sat-header h3 {
+    margin-bottom: 0;
+}
+
+.sat-fix {
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+
+.sat-fix.ok { color: var(--accent-green); }
+.sat-fix.bad { color: var(--accent-red); }
+
+.sat-body {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: flex-start;
+}
+
+.skyplot-wrap {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 0 auto;
+}
+
+#skyplot {
+    width: min(230px, 54vh, 80vw);
+    height: min(230px, 54vh, 80vw);
+}
+
+.sky-ring {
+    fill: none;
+    stroke: rgba(255, 255, 255, 0.22);
+    stroke-width: 1;
+}
+
+.sky-compass {
+    fill: var(--text-dim);
+    font-size: 10px;
+    font-weight: 700;
+    text-anchor: middle;
+}
+
+.sat circle {
+    fill: none;
+    stroke-width: 2.5;
+}
+
+.sat text {
+    font-size: 9px;
+    font-weight: 700;
+    text-anchor: middle;
+}
+
+.sat.good circle { stroke: var(--accent-green); }
+.sat.fair circle { stroke: var(--accent-gold); }
+.sat.weak circle { stroke: var(--accent-red); }
+.sat.none circle { stroke: var(--text-dim); }
+.sat.good text { fill: var(--accent-green); }
+.sat.fair text { fill: var(--accent-gold); }
+.sat.weak text { fill: var(--accent-red); }
+.sat.none text { fill: var(--text-dim); }
+.sat.used.good circle { fill: var(--accent-green); }
+.sat.used.fair circle { fill: var(--accent-gold); }
+.sat.used.weak circle { fill: var(--accent-red); }
+
+.sat-legend {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 4px 10px;
+    font-size: 0.62rem;
+    color: var(--text-dim);
+    margin-top: 2px;
+}
+
+.sat-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.sat-legend .dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    border: 2px solid var(--text-dim);
+}
+
+.sat-legend .dot.used { background: var(--text-dim); }
+
+.sat-legend .swatch {
+    width: 9px;
+    height: 9px;
+    border-radius: 2px;
+}
+
+.swatch.good, .snr-fill.good { background: var(--accent-green); }
+.swatch.fair, .snr-fill.fair { background: var(--accent-gold); }
+.swatch.weak, .snr-fill.weak { background: var(--accent-red); }
+
+.snr-bars {
+    flex: 1 1 200px;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.snr-group-name {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--accent-cyan);
+    margin-bottom: 2px;
+}
+
+.snr-row {
+    display: flex;
+    gap: 3px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+}
+
+.snr-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 24px;
+    flex: 0 0 24px;
+    opacity: 0.45;
+}
+
+.snr-col.used { opacity: 1; }
+
+.snr-val, .snr-prn {
+    font-size: 0.6rem;
+    color: var(--text-bright);
+    font-variant-numeric: tabular-nums;
+}
+
+.snr-track {
+    width: 14px;
+    height: 56px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 2px;
+    display: flex;
+    align-items: flex-end;
+    margin: 2px 0;
+}
+
+.snr-fill {
+    width: 100%;
+    border-radius: 2px;
+}
+
+.sat-empty {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+}
+
+/* 3.5" LCD (480x320): plot and bars side by side, tighter spacing */
+@media (max-height: 400px) {
+    .modal-overlay { padding: 6px; }
+    .sat-card { padding: 6px 10px; }
+    .sat-card .btn-action.primary { margin-top: 4px; padding: 6px 14px; }
+    .sat-body { flex-wrap: nowrap; gap: 8px; }
+    .snr-bars { max-height: calc(100vh - 100px); overflow-y: auto; gap: 4px; }
+    .snr-track { height: 40px; }
+}

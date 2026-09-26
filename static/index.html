@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>RPi 3 4WD GPS & IMU Tracker</title>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+    <div class="app-container">
+        <!-- Top Telemetry Header -->
+        <header class="telemetry-bar">
+            <div class="speed-box" onclick="toggleSpeedUnit()">
+                <span class="speed-value" id="speedValue">0</span>
+                <span class="speed-unit" id="speedUnit">KM/H</span>
+            </div>
+            
+            <div class="stats-group">
+                <div class="stat-pill clickable" onclick="toggleSatModal()">
+                    <span class="label">SATS/HDOP</span>
+                    <span class="value" id="satValue">0 / 0.9</span>
+                </div>
+                <div class="stat-pill">
+                    <span class="label">PITCH / ROLL</span>
+                    <span class="value" id="inclineValue">0° / 0°</span>
+                </div>
+                <div class="stat-pill">
+                    <span class="label">G-FORCE</span>
+                    <span class="value" id="gForceValue">1.0g</span>
+                </div>
+            </div>
+
+            <div class="status-badge" id="statusBadge">Initializing</div>
+        </header>
+
+        <!-- Main Map Area -->
+        <main class="map-container">
+            <div id="map"></div>
+            
+            <!-- Floating Map Overlay Info -->
+            <div class="coords-overlay">
+                <div id="latLonDisplay">Lat: 0.000000 | Lon: 0.000000</div>
+                <div id="roughnessDisplay">Corrugation Roughness: 0.00</div>
+            </div>
+
+            <!-- Track history range: Today / 3 days / 7 days / All / Off -->
+            <div class="map-controls top">
+                <button class="btn-icon history-btn" id="historyBtn" onclick="cycleHistoryRange()" title="Track history">1D</button>
+            </div>
+
+            <!-- Floating Controls -->
+            <div class="map-controls">
+                <button class="btn-icon" id="mapTypeBtn" onclick="cycleMapLayer()" title="Switch Map Type">🛰️</button>
+                <button class="btn-icon" id="recenterBtn" onclick="recenterMap()" title="Center Map">🎯</button>
+                <button class="btn-icon" id="autoCenterToggle" onclick="toggleAutoCenter()" title="Lock Center">🔒</button>
+            </div>
+        </main>
+
+        <!-- Bottom Touch Action Bar -->
+        <footer class="action-bar">
+            <div class="log-info">
+                <span class="icon">📁</span>
+                <span id="logFileText">Logging: Today</span>
+                <span class="points-tag" id="pointsLogged">0 rows</span>
+            </div>
+
+            <div class="action-buttons">
+                <button class="btn-action secondary" id="satsBtn" onclick="toggleSatModal()">
+                    <span class="icon">🛰️</span> SATS
+                </button>
+                <button class="btn-action secondary" id="logsBtn" onclick="toggleLogsModal()">
+                    <span class="icon">💾</span> LOGS
+                </button>
+            </div>
+
+            <div class="mode-tag" id="modeTag">Hardware</div>
+        </footer>
+    </div>
+
+    <!-- Daily Logs Modal -->
+    <div class="modal-overlay" id="logsModal" style="display:none;">
+        <div class="modal-card">
+            <h3>📅 Daily Telemetry Logs (64GB SD Card)</h3>
+            <div class="logs-list" id="logsList">Loading...</div>
+            <button class="btn-action primary" onclick="toggleLogsModal()">CLOSE</button>
+        </div>
+    </div>
+
+    <!-- Satellite Status Modal -->
+    <div class="modal-overlay" id="satModal" style="display:none;">
+        <div class="modal-card sat-card">
+            <div class="sat-header">
+                <h3>🛰️ Satellites</h3>
+                <span class="sat-fix" id="satFix">No Fix</span>
+            </div>
+            <div class="sat-body">
+                <div class="skyplot-wrap">
+                    <svg id="skyplot" viewBox="-115 -115 230 230" aria-label="Sky plot of satellite positions"></svg>
+                    <div class="sat-legend">
+                        <span><i class="dot used"></i>used</span>
+                        <span><i class="dot"></i>in view</span>
+                        <span><i class="swatch good"></i>30+</span>
+                        <span><i class="swatch fair"></i>20–29</span>
+                        <span><i class="swatch weak"></i>&lt;20 dB</span>
+                    </div>
+                </div>
+                <div class="snr-bars" id="snrBars"></div>
+            </div>
+            <button class="btn-action primary" onclick="toggleSatModal()">CLOSE</button>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="/static/app.js"></script>
+</body>
+</html>
