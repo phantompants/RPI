@@ -707,8 +707,15 @@ def list_daily_logs():
 
 @app.get("/api/logs/download/{date_str}/{filename}")
 def download_log_file(date_str: str, filename: str):
-    file_path = os.path.join(LOG_DIR, date_str, filename)
-    if os.path.exists(file_path):
+    # Only serve files inside LOG_DIR: reject "..", separators and anything resolving elsewhere.
+    for part in (date_str, filename):
+        if part in ("", ".", "..") or "/" in part or "\\" in part or "\0" in part:
+            raise HTTPException(status_code=400, detail="Invalid path")
+    base = os.path.realpath(LOG_DIR)
+    file_path = os.path.realpath(os.path.join(base, date_str, filename))
+    if not file_path.startswith(base + os.sep):
+        raise HTTPException(status_code=400, detail="Invalid path")
+    if os.path.isfile(file_path):
         return FileResponse(file_path, filename=filename)
     raise HTTPException(status_code=404, detail="Log file not found")
 
