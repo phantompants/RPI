@@ -7,7 +7,7 @@ import socket
 import csv
 import threading
 from typing import List, Dict, Any, Optional
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
@@ -431,6 +431,67 @@ class GPSReaderThread(threading.Thread):
 
 LAST_LOG_TIME = 0.0
 
+# One log file per boot per day: telemetry_<day>.csv, then ...B.csv, ...C.csv after each reboot.
+# Keyed on the kernel boot id, so restarting just the app service keeps appending to the same file.
+def _read_boot_id() -> str:
+    try:
+        with open("/proc/sys/kernel/random/boot_id") as f:
+            return f.read().strip()
+    except OSError:
+        return f"pid-{os.getpid()}-{int(time.time())}"  # non-Linux (PC testing): one file per app run
+
+BOOT_ID = _read_boot_id()
+SESSIONS_FILE = ".sessions.json"   # per-day map of boot id -> log file name
+_session_files: Dict[str, str] = {}
+
+
+def file_suffix(index: int) -> str:
+    """0 -> '', 1 -> 'B', ... 25 -> 'Z', 26 -> 'AA' (spreadsheet-style letters)."""
+    if index == 0:
+        return ""
+    n, s = index + 1, ""
+    while n:
+        n, r = divmod(n - 1, 26)
+        s = chr(65 + r) + s
+    return s
+
+
+def log_sort_key(name: str):
+    """Order a day's files as base, B, C, ... Z, AA (plain string sort would put AA before B)."""
+    stem = name.rsplit(".", 1)[0]
+    suffix = stem[len("telemetry_YYYY-MM-DD"):] if stem.startswith("telemetry_") else stem
+    return (len(suffix), suffix, name)
+
+
+def session_log_path(day: str) -> str:
+    """CSV path this boot writes to for the given UTC day, creating the next lettered file if needed."""
+    if day in _session_files:
+        return _session_files[day]
+    daily_dir = os.path.join(LOG_DIR, day)
+    os.makedirs(daily_dir, exist_ok=True)
+    sessions_path = os.path.join(daily_dir, SESSIONS_FILE)
+    try:
+        with open(sessions_path, encoding="utf-8") as f:
+            sessions = json.load(f)
+    except (OSError, ValueError):
+        sessions = {}
+    name = sessions.get(BOOT_ID)
+    if not name:
+        taken = set(os.listdir(daily_dir)) | set(sessions.values())
+        index = 0
+        while f"telemetry_{day}{file_suffix(index)}.csv" in taken:
+            index += 1
+        name = f"telemetry_{day}{file_suffix(index)}.csv"
+        sessions[BOOT_ID] = name
+        try:
+            with open(sessions_path, "w", encoding="utf-8") as f:
+                json.dump(sessions, f, indent=1)
+        except OSError as e:
+            print(f"[LOGGER] Could not save {SESSIONS_FILE}: {e}")
+        print(f"[LOGGER] This boot logs to {day}/{name}")
+    _session_files[day] = os.path.join(daily_dir, name)
+    return _session_files[day]
+
 # Daily Auto-Rolling Logger Function
 def log_to_daily_file():
     """Writes telemetry rows to date-partitioned CSV files for video overlays & ride analysis."""
@@ -449,10 +510,7 @@ def log_to_daily_file():
     LAST_LOG_TIME = now
 
     today_str = datetime.utcnow().strftime("%Y-%m-%d")
-    daily_dir = os.path.join(LOG_DIR, today_str)
-    os.makedirs(daily_dir, exist_ok=True)
-    
-    csv_path = os.path.join(daily_dir, f"telemetry_{today_str}.csv")
+    csv_path = session_log_path(today_str)
     file_exists = os.path.exists(csv_path)
 
     headers = [
@@ -690,20 +748,23 @@ def get_history(since: Optional[float] = None):
         "last": points[-1][0] if points else None,
     }
 
+LOG_LIST_DAYS = 10
+
 @app.get("/api/logs/list")
 def list_daily_logs():
-    """Lists all daily telemetry folders and files available on the SD card."""
+    """Every log file from the last LOG_LIST_DAYS days (all boots: base, B, C, ...), newest day first."""
+    oldest = (datetime.utcnow() - timedelta(days=LOG_LIST_DAYS - 1)).strftime("%Y-%m-%d")
     log_tree = []
     if os.path.exists(LOG_DIR):
         for date_folder in sorted(os.listdir(LOG_DIR), reverse=True):
             folder_path = os.path.join(LOG_DIR, date_folder)
-            if os.path.isdir(folder_path):
-                files = os.listdir(folder_path)
-                log_tree.append({
-                    "date": date_folder,
-                    "files": files
-                })
-    return {"logs": log_tree}
+            if date_folder < oldest or not os.path.isdir(folder_path):
+                continue
+            names = sorted((f for f in os.listdir(folder_path) if f.endswith((".csv", ".gpx"))), key=log_sort_key)
+            files = [{"name": f, "size": os.path.getsize(os.path.join(folder_path, f))} for f in names]
+            if files:
+                log_tree.append({"date": date_folder, "files": files})
+    return {"logs": log_tree, "days": LOG_LIST_DAYS}
 
 @app.get("/api/logs/download/{date_str}/{filename}")
 def download_log_file(date_str: str, filename: str):

@@ -395,6 +395,12 @@ async function toggleLogsModal() {
     }
 }
 
+function formatBytes(n) {
+    if (n < 1024) return `${n} B`;
+    if (n < 1024 * 1024) return `${(n / 1024).toFixed(0)} KB`;
+    return `${(n / 1024 / 1024).toFixed(1)} MB`;
+}
+
 async function loadDailyLogsList() {
     const container = document.getElementById("logsList");
     container.innerHTML = "Loading logs...";
@@ -403,18 +409,19 @@ async function loadDailyLogsList() {
         const data = await res.json();
         
         if (!data.logs || data.logs.length === 0) {
-            container.innerHTML = "<p>No log files recorded yet today.</p>";
+            container.innerHTML = `<p>No log files in the last ${data.days || 10} days.</p>`;
             return;
         }
 
         let html = "";
         data.logs.forEach(group => {
             html += `<div class="log-date-group">
-                <div class="log-date-header">📅 Date: ${group.date}</div>`;
+                <div class="log-date-header">📅 ${group.date}${group.files.length > 1 ? ` · ${group.files.length} files (one per boot)` : ""}</div>`;
             group.files.forEach(f => {
+                const url = `/api/logs/download/${encodeURIComponent(group.date)}/${encodeURIComponent(f.name)}`;
                 html += `<div class="log-file-item">
-                    <span>📄 ${f}</span>
-                    <a href="/api/logs/download/${group.date}/${f}" download>DOWNLOAD</a>
+                    <span>📄 ${f.name} <small>${formatBytes(f.size)}</small></span>
+                    <a href="${url}" download>DOWNLOAD</a>
                 </div>`;
             });
             html += `</div>`;
