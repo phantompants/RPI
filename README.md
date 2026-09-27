@@ -146,12 +146,13 @@ A dash-mounted screen that shows live data from the Pi over the vehicle Wi-Fi. T
    ```
 2. On first boot it creates the hotspot **GPS-Display-Setup**. Join it from your phone, choose the vehicle Wi-Fi (GL.iNet), enter its password and the Pi's name (`gps4.local`) or IP.
 3. LED: green = live data, red = no link to the Pi, blue = Wi-Fi setup. Hold the screen while powering on to redo Wi-Fi setup.
-4. Wrong orientation or mirrored? This USB-C CYD scans natively in landscape and uses orientation option 2 (the default). For another board, send `t` over serial (115200) to show a test pattern, then tap the screen to cycle orientation options 1–4 (saved on each tap) and send `t` again to return. Other serial commands: `i` invert colours, `f` lower SPI speed, `d` switch ILI9341/ST7789 driver, `s` status.
+4. Wrong orientation or mirrored? This USB-C CYD scans natively in landscape and uses orientation option 3 (the default, for the vehicle mount; option 2 is the same view rotated 180°). To flip a mounted CYD 180°, send `m` over serial to step to the next option (2 ↔ 3 are the 180° pair). For another board, send `t` over serial (115200) to show a test pattern, then tap the screen to cycle orientation options 1–4 (saved on each tap) and send `t` again to return. Other serial commands: `i` invert colours, `f` lower SPI speed, `d` switch ILI9341/ST7789 driver, `s` status.
 
 ---
 
 ## ⚡ Quick Troubleshooting & Helpful Tips
 - **No GPS Fix?** GPS dongles take 1–3 minutes on "cold start" outdoors to lock onto 4+ satellites. Give it line-of-sight to the sky.
+- **Rotate the Pi LCD 180°**: in `/boot/firmware/config.txt` change `dtoverlay=tft35a:rotate=90` to `rotate=270` (the vehicle mount uses 270), and in `/etc/X11/xorg.conf.d/40-libinput.conf` change `CalibrationMatrix` from `"0 -1 1 1 0 0 0 0 1"` to `"0 1 0 -1 0 1 0 0 1"`, then reboot.
 - **Screen Touch Calibration**: If touch coordinates are inverted, run `sudo ./LCD35-show 90` or use `xinput-calibrator`.
 - **Stuck on the Raspberry Pi splash screen?** The 3.5" LCD driver (LCD-show) turns off the `vc4-kms-v3d` graphics driver, so the desktop must not wait for it. Make sure `/etc/lightdm/lightdm.conf` has `logind-check-graphical=false` under `[LightDM]`, and check `~/.local/share/xorg/Xorg.0.log` for `(EE)` config errors in `/etc/X11/xorg.conf.d/`. X must draw on the LCD framebuffer, not HDMI: add `/etc/X11/xorg.conf.d/99-lcd35-fb1.conf` with a `Device` section using `Driver "fbdev"` and `Option "fbdev" "/dev/fb1"` (check with `cat /sys/class/graphics/fb1/name`, which should be `fb_ili9486`). Run only one X server: don't also `startx` from `~/.bash_profile`.
 - **GPS and M5Stick swapped?** `ttyACM0`/`ttyACM1` numbering changes between boots. gpsd should point at the GPS by identity: `DEVICES="/dev/serial/by-id/usb-u-blox_..."` with `USBAUTO="false"` in `/etc/default/gpsd`. The app finds both devices by identity automatically.

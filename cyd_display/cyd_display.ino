@@ -121,7 +121,7 @@ struct Settings {
   bool invert = false;
   uint8_t rotation = 1;
   uint8_t freqIndex = 0;   // index into SPI_FREQS
-  uint8_t madIndex = 2;    // index into MADCTL_OPTS; 2 = this USB-C CYD (landscape-native, un-mirrored)
+  uint8_t madIndex = 3;    // index into MADCTL_OPTS; 3 = this USB-C CYD as mounted in the vehicle (2 = same, rotated 180°)
   String piHost = "gps4.local";
 } settings;
 
