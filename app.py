@@ -787,6 +787,14 @@ if not os.path.exists(static_dir):
 
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
+# Make browsers (iOS Safari especially) revalidate the page and assets, so UI updates show on reload
+@app.middleware("http")
+async def no_cache_ui(request, call_next):
+    response = await call_next(request)
+    if request.url.path == "/" or request.url.path.startswith("/static/"):
+        response.headers["Cache-Control"] = "no-cache"
+    return response
+
 @app.get("/")
 def read_root():
     return FileResponse(os.path.join(static_dir, "index.html"))
