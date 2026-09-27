@@ -13,7 +13,8 @@ A complete, beginner-friendly 4WD GPS & IMU tracking application designed for **
 - ⏸️ **Stop Markers**: Every stop of 1 hour or more (lunch, camps, overnight with the Pi switched off) gets a gold marker showing how long you stayed. Tap for arrival/departure times.
 - 🛰️ **Satellite Status Page**: Sky plot and signal-strength (SNR) bars per constellation (GPS, GLONASS, Galileo, BeiDou…). Tap **SATS** or the SATS/HDOP pill, or bookmark `http://<PI_IP>:8000/#sats`.
 - 💾 **GPX Export**: Save and export `.gpx` files compatible with Strava, Google Earth, and Garmin.
-- 📱 **Dual View**: Display on 3.5" Pi LCD screen (Kiosk Mode) **AND** view remotely from any smartphone/laptop on the same Wi-Fi.
+- 📱 **Dual View**: Display on 3.5" Pi LCD screen (Kiosk Mode) **AND** view remotely from any phone, tablet (sized up for iPad Pro 12.9") or laptop on the same Wi-Fi. Remote browsers show the SATS/LOGS bar just under the live stats.
+- 🗜️ **Download All**: **LOGS → DOWNLOAD ALL LOGS (.ZIP)** saves every day's logs as one zip (`date/filename` inside), streamed from `/api/logs/download-all`.
 - 🎮 **Built-in Simulation Mode**: Automatic demo mode if no physical GPS is attached—allows full testing on Windows/Mac/Linux!
 
 ---

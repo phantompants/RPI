@@ -280,6 +280,15 @@ body, html {
     margin-bottom: 12px;
 }
 
+.btn-action.download-all {
+    justify-content: center;
+    margin-bottom: 10px;
+    background: rgba(0, 255, 136, 0.15);
+    color: var(--accent-green);
+    border: 1px solid rgba(0, 255, 136, 0.4);
+    text-decoration: none;
+}
+
 .logs-list {
     flex: 1;
     overflow-y: auto;
@@ -566,4 +575,36 @@ body, html {
     .sat-body { flex-wrap: nowrap; gap: 8px; }
     .snr-bars { max-height: calc(100vh - 100px); overflow-y: auto; gap: 4px; }
     .snr-track { height: 40px; }
+}
+
+/* Phones (portrait): keep the log/download bar on one line */
+@media (max-width: 500px) {
+    .remote .mode-tag { display: none; }
+    .remote .log-info { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .remote .log-info .icon { display: none; }
+    .remote .action-bar { gap: 8px; }
+    .remote .btn-action { padding: 10px 12px; }
+    .remote .telemetry-bar { padding: 6px 8px; }
+    .remote .stats-group { gap: 4px; }
+    .remote .stat-pill { min-width: 0; padding: 3px 6px; }
+}
+
+/* Tablets (iPad Pro 12.9" is 1024x1366 / 1366x1024): scale everything up from the 3.5" LCD sizing */
+@media (min-width: 900px) and (min-height: 700px) {
+    html.remote { font-size: 21px; }
+    .remote .telemetry-bar { height: 84px; padding: 8px 20px; }
+    .remote .action-bar { height: 76px; padding: 10px 20px; }
+    .remote .stats-group { gap: 14px; }
+    .remote .stat-pill { min-width: 110px; padding: 6px 14px; border-radius: 10px; }
+    .remote .btn-action { padding: 12px 22px; border-radius: 10px; }
+    .remote .btn-icon { width: 60px; height: 60px; }
+    .remote .map-controls { right: 18px; bottom: 18px; gap: 12px; }
+    .remote .map-controls.top { top: 14px; bottom: auto; }
+    .remote .coords-overlay { top: 14px; left: 14px; padding: 8px 14px; }
+    .remote .modal-card { max-width: 640px; padding: 24px; }
+    .remote .logs-list { max-height: 60vh; }
+    .remote .sat-card { max-width: 980px; }
+    .remote #skyplot { width: min(380px, 50vh, 80vw); height: min(380px, 50vh, 80vw); }
+    .remote .snr-col { width: 34px; flex-basis: 34px; }
+    .remote .snr-track { width: 20px; height: 90px; }
 }

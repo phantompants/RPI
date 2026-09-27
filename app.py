@@ -6,12 +6,14 @@ import json
 import socket
 import csv
 import threading
+import io
+import zipfile
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timezone, timedelta
 
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse, Response, StreamingResponse
 import uvicorn
 
 sys.stdout.reconfigure(line_buffering=True)  # show thread messages in journalctl as they happen
@@ -779,6 +781,56 @@ def download_log_file(date_str: str, filename: str):
     if os.path.isfile(file_path):
         return FileResponse(file_path, filename=filename)
     raise HTTPException(status_code=404, detail="Log file not found")
+
+class _ZipChunks(io.RawIOBase):
+    """Write-only sink for zipfile that hands back what has been written so far, so a zip can be streamed."""
+    def __init__(self):
+        self.chunks = []
+    def writable(self):
+        return True
+    def write(self, b):
+        self.chunks.append(bytes(b))
+        return len(b)
+    def take(self):
+        data = b"".join(self.chunks)
+        self.chunks.clear()
+        return data
+
+@app.get("/api/logs/download-all")
+def download_all_logs():
+    """Every CSV/GPX log from every day as one zip (date/filename inside), streamed so large trips don't fill RAM."""
+    entries = []
+    if os.path.exists(LOG_DIR):
+        for date_folder in sorted(os.listdir(LOG_DIR)):
+            folder_path = os.path.join(LOG_DIR, date_folder)
+            if not os.path.isdir(folder_path):
+                continue
+            for f in sorted((f for f in os.listdir(folder_path) if f.endswith((".csv", ".gpx"))), key=log_sort_key):
+                entries.append((os.path.join(folder_path, f), f"{date_folder}/{f}"))
+    if not entries:
+        raise HTTPException(status_code=404, detail="No log files yet")
+
+    def generate():
+        sink = _ZipChunks()
+        with zipfile.ZipFile(sink, "w", zipfile.ZIP_DEFLATED) as zf:
+            for path, arcname in entries:
+                info = zipfile.ZipInfo.from_file(path, arcname)
+                info.compress_type = zipfile.ZIP_DEFLATED
+                remaining = info.file_size  # snapshot: today's log keeps growing while we read it
+                with open(path, "rb") as src, zf.open(info, "w") as dst:
+                    while remaining > 0:
+                        block = src.read(min(1 << 20, remaining))
+                        if not block:
+                            break
+                        dst.write(block)
+                        remaining -= len(block)
+                        yield sink.take()
+                yield sink.take()
+        yield sink.take()
+
+    name = f"gps-logs-all-{datetime.now().strftime('%Y-%m-%d')}.zip"
+    return StreamingResponse(generate(), media_type="application/zip",
+                             headers={"Content-Disposition": f'attachment; filename="{name}"'})
 
 # Serve static web frontend
 static_dir = os.path.join(os.path.dirname(__file__), "static")
