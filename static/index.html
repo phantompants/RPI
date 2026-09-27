@@ -7,6 +7,10 @@
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="/static/style.css" />
+    <script>
+        // Phones/remote browsers get the log & download bar at the top; the Pi LCD kiosk (localhost) keeps it at the bottom
+        if (!["localhost", "127.0.0.1"].includes(location.hostname)) document.documentElement.classList.add("remote");
+    </script>
 </head>
 <body>
     <div class="app-container">
