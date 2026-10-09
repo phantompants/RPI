@@ -1,0 +1,14 @@
+[Unit]
+Description=Portable Media Backup & Cloud Sync Daemon
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/python3 /opt/mediabackup/src/main.py
+WorkingDirectory=/opt/mediabackup
+StandardOutput=inherit
+StandardError=inherit
+Restart=always
+User=root
+
+[Install]
+WantedBy=multi-user.target
