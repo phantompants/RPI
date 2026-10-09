@@ -1,0 +1,16 @@
+# Local Pi login (see rpi_remote.py)
+pi_config.json
+
+# Python
+__pycache__/
+*.pyc
+venv/
+
+# Telemetry logs stay on the Pi / SD card
+logs/
+
+# Large downloaded tool binaries
+tools/
+
+# Pi-side config backups
+.backup/
